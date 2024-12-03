@@ -1,52 +1,59 @@
 import os
-import numpy as np
-from PIL import Image
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from PIL import Image, ImageFont, ImageDraw
+from numpy import array, dot, linalg, sqrt, mean
 import matplotlib.pyplot as plt
 
 
-def load_images():
-    """Загружает изображения из каталога 'fonts' и преобразует их в одномерные векторы."""
+# Функція для завантаження зображень із папки fonts
+def load_images_from_folder(folder):
     images = []
-    for filename in os.listdir("fonts"):
-        img = Image.open(os.path.join("fonts", filename)).convert("L")
-        images.append(np.array(img).flatten())
-    return np.array(images)
+    for filename in os.listdir(folder):
+        img_path = os.path.join(folder, filename)
+        img = Image.open(img_path).convert("L")  # Перетворення в градації сірого
+        images.append(array(img).flatten())  # Перетворення в 1D-вектор
+    return array(images), img.size
 
 
-# Шаг 1: Загрузка и линеаризация изображений
-image_matrix = load_images()
+# PCA: Аналіз головних компонент
+def pca(X):
+    num_data, dim = X.shape
+    mean_X = mean(X, axis=0)
+    X = X - mean_X
+    if dim > num_data:
+        M = dot(X, X.T)
+        e, EV = linalg.eigh(M)
+        tmp = dot(X.T, EV).T
+        V = tmp[::-1]
+        S = sqrt(e)[::-1]
+        for i in range(V.shape[1]):
+            V[:, i] /= S
+    else:
+        U, S, V = linalg.svd(X)
+        V = V[:num_data]
+    return V, S, mean_X
 
-# Шаг 2: Центрирование данных (вычитание среднего)
-mean_image = np.mean(image_matrix, axis=0)
-centered_images = image_matrix - mean_image
 
-# Шаг 3: Стандартизация данных
-scaler = StandardScaler()
-standardized_images = scaler.fit_transform(centered_images)
-
-# Шаг 4: Применение PCA для уменьшения размерности
-pca = PCA(n_components=100)  # Выбираем 100 главных компонент
-principal_components = pca.fit_transform(standardized_images)
+# Візуалізація головних компонент
+def plot_pca_components(components, img_size):
+    for i in range(len(components)):
+        plt.imshow(components[i].reshape(img_size), cmap="gray")
+        plt.title(f"Головна компонента {i + 1}")
+        plt.axis("off")
+        plt.savefig(f"images/Головна компонента {i + 1}.jpg")
+        plt.close()
 
 
-# Шаг 5: Масштабирование PCA-результатов в диапазон [0, 1]
-minmax_scaler = MinMaxScaler(feature_range=(0, 1))
-scaled_principal_components = minmax_scaler.fit_transform(principal_components)
+# Основна функція
+def main():
+    # Завантаження зображень
+    images, img_size = load_images_from_folder("fonts")
 
-# Приведение к диапазону [0, 255] для визуализации или сохранения
-scaled_principal_components_255 = (scaled_principal_components * 255).astype(np.uint8)
+    # Виконання PCA
+    components, _, _ = pca(images)
 
-# Шаг 6: Визуализация первых двух компонент
-plt.scatter(
-    scaled_principal_components_255[:, 0],
-    scaled_principal_components_255[:, 1],
-    alpha=0.7,
-)
-plt.title("Перші дві головні компоненти (масштабовані в [0, 255])")
-plt.xlabel("Головна компонента 1")
-plt.ylabel("Головна компонента 2")
-plt.savefig("results.jpg")
+    # Візуалізація перших трьох головних компонент
+    plot_pca_components(components[:3], img_size)
 
-# Проверка диапазона значений
+
+if __name__ == "__main__":
+    main()

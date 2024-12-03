@@ -1,89 +1,69 @@
-from PIL import Image
 import numpy as np
+from PIL import Image
 import matplotlib.pyplot as plt
 from scipy.ndimage import (
     binary_erosion,
     binary_dilation,
     binary_opening,
     binary_closing,
-    measurements,
 )
-import inspect
-
-# Завантаження зображення
-image_path = "stones_24.jpg"  # Змініть на шлях до вашого зображення
-image = Image.open(image_path)
 
 
-# 1. Відображення оригінального зображення
-def show_image(title, img, cmap="gray"):
-    func = inspect.stack()[1].function
-    plt.imshow(img, cmap=cmap)
+# Функція для завантаження зображення та перетворення в відтінки сірого
+def load_grayscale(image_path):
+    img = Image.open(image_path).convert("L")  # Перетворення в відтінки сірого
+    return np.array(img)
+
+
+# Функція для порогового перетворення (бінаризації)
+def threshold_image(img, threshold=128):
+    binary_img = (img > threshold).astype(np.uint8)  # Порогове значення
+    return binary_img
+
+
+# Функція для створення структурного елемента у вигляді послідовності точок
+def create_structuring_element(size):
+    element = np.zeros((size, size), dtype=np.uint8)
+    np.fill_diagonal(element, 1)  # Заповнення діагоналі
+    return element
+
+
+# Функція для відображення зображення
+def show_image(img, title=""):
+    plt.imshow(img, cmap="gray")
     plt.title(title)
     plt.axis("off")
-    plt.savefig(f"{func}.jpg")
+    plt.savefig(f"images/{title}.jpg")
+    plt.close()
 
 
-def one_task():
-    # Перетворення в відтінки сірого
-    gray_image = image.convert("L")
-    # Бінаризація з використанням порогу (поріг = 128 для стандартного діапазону)
-    binary_image = gray_image.point(lambda p: 255 if p > 128 else 0)
-    show_image("Відтінки сірого", gray_image)
-    show_image("Бінарне зображення", binary_image)
-    return binary_image
-
-
-def two_task():
-    # Порогове перетворення (бінаризація)
-    threshold = 50  # Поріг можна налаштувати
-    gray_image = one_task()
-    binary_image = gray_image.point(lambda p: 255 if p > threshold else 0)
-    show_image("Бінарне зображення після порогового перетворення", binary_image)
-    return np.array(binary_image)  # Повертаємо як масив numpy для подальших операцій
-
-
-def three_task(struct_elem):
-    # Створення структурного елементу "послідовність точок" (розмір: 1x5)
-    eroded = binary_erosion(two_task(), structure=struct_elem)
-    show_image("Ерозія", eroded)
-    return eroded
-
-
-def four_task(struct_elem):
-    # Операція дилатації
-    dilated = binary_dilation(three_task(struct_elem), structure=struct_elem)
-    show_image("Дилатація", dilated)
-    return dilated
-
-
-def five_task(struct_elem):
-    # Повторна ерозія та дилатація для згладжування контурів
-    smoothed = binary_erosion(four_task(struct_elem), structure=struct_elem).astype(
-        np.uint8
-    )
-    smoothed = binary_dilation(smoothed, structure=struct_elem)
-    show_image("Згладжене зображення", smoothed)
-    return smoothed
-
-
-def six_task(struct_elem):
-    # Морфологічне розмикання
-    opened = binary_opening(two_task(), structure=struct_elem)
-    show_image("Морфологічне розмикання", opened)
-    return opened
-
-
-def seven_task(struct_elem):
-    # Морфологічне замикання
-    closed = binary_closing(six_task(struct_elem), structure=struct_elem)
-    show_image("Морфологічне замикання", closed)
-
-
+# Основний блок обробки зображення
 def main():
-    struct_elem = np.ones((1, 9), dtype=np.uint8)
-    seven_task(struct_elem)
-    five_task(struct_elem)
+    image_path = "stones_24.jpg"
+    # 1. Завантаження та перетворення в відтінки сірого
+    grayscale_img = load_grayscale(image_path)
+    show_image(grayscale_img, "Відтінки сірого")
+
+    # 2. Порогове перетворення
+    binary_img = threshold_image(grayscale_img, threshold=128)
+    show_image(binary_img, "Бінарне зображення")
+
+    # 3. Ерозія зображення структурним елементом (послідовність точок)
+    struct_element = create_structuring_element(5)  # Послідовність точок розміром 5x5
+    eroded_img = binary_erosion(binary_img, structure=struct_element).astype(np.uint8)
+    show_image(eroded_img, "Ерозія (послідовність точок)")
+
+    # 4. Дилатація зображення
+    dilated_img = binary_dilation(eroded_img, structure=struct_element).astype(np.uint8)
+    show_image(dilated_img, "Дилатація")
+
+    # 5. Морфологічне розмикання
+    opened_img = binary_opening(binary_img, structure=struct_element).astype(np.uint8)
+    show_image(opened_img, "Морфологічне розмикання")
+
+    # 6. Морфологічне замикання
+    closed_img = binary_closing(opened_img, structure=struct_element).astype(np.uint8)
+    show_image(closed_img, "Морфологічне замикання")
 
 
 if __name__ == "__main__":

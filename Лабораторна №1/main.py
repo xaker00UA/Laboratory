@@ -36,6 +36,7 @@ def four_task(img):
     plt.legend()
     plt.grid(True)
     plt.savefig("four_task.jpg")
+    plt.close()
 
 
 # Робимо гістрограми
@@ -49,6 +50,7 @@ def five_task(img):
     plt.figure()
     plt.hist(im.flatten(), 128)
     plt.savefig("five_task.jpg")
+    plt.close()
 
 
 def six_task(img):
